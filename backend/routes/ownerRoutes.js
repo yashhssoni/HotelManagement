@@ -16,10 +16,10 @@ const { upload } = require('../config/cloudinary');
 
 // Staff Management Routes
 router.post('/receptionist', protect(['owner']), createReceptionist);
-router.get('/receptionist', protect(['owner']), getReceptionists);
+router.get('/receptionist', protect(['owner']), getReceptionists); // <-- Iska hona zaroori hai
 router.delete('/receptionist/:id', protect(['owner']), deleteReceptionist);
 
-// Room Inventory Management
+// Room Management
 router.get('/rooms', protect(['owner']), getOwnerRooms);
 router.post('/rooms', protect(['owner']), upload.array('images', 5), addRoom);
 router.put('/rooms/:id', protect(['owner']), updateRoom);
