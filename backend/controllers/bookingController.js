@@ -10,7 +10,7 @@ exports.getCustomerBookings = async (req, res) => {
       .populate('roomId', 'roomNumber roomType')
       .sort({ createdAt: -1 });
 
-    res.json(bookings);
+    res.status(200).json(bookings);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -28,7 +28,7 @@ exports.getPendingBookings = async (req, res) => {
       .populate('customerId', 'name email phone')
       .sort({ createdAt: -1 });
 
-    res.json(bookings);
+    res.status(200).json(bookings);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -47,29 +47,33 @@ exports.getActiveBookings = async (req, res) => {
       .populate('roomId', 'roomNumber roomType pricePerNight')
       .sort({ updatedAt: -1 });
 
-    res.json(bookings);
+    res.status(200).json(bookings);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Receptionist & Owner: Get Available Vacant Rooms for Allotment Modal
+// Customer, Receptionist & Owner: Get Available Vacant Rooms
 exports.getAvailableRooms = async (req, res) => {
   try {
-    const { roomType } = req.query;
-    const hotelIdentifier = req.user.hotelId || req.user.id;
+    const { roomType, hotelId } = req.query;
+    let filter = { status: 'available' };
 
-    const filter = {
-      $or: [{ hotelId: hotelIdentifier }, { hotelId: req.user.hotelId }, { hotelId: req.user.id }],
-      status: 'available',
-    };
+    // Agar owner/receptionist hai toh unka hotel scope lagega, customer ke case me all available ya specific hotelId
+    const targetHotelId = hotelId || req.user.hotelId;
+    if (targetHotelId) {
+      filter.$or = [
+        { hotelId: targetHotelId },
+        { hotelId: req.user.id },
+      ];
+    }
 
     if (roomType) {
       filter.roomType = new RegExp(`^${roomType.trim()}$`, 'i');
     }
 
-    const rooms = await Room.find(filter).sort({ roomNumber: 1 });
-    res.json(rooms);
+    const rooms = await Room.find(filter).sort({ pricePerNight: 1, roomNumber: 1 });
+    res.status(200).json(rooms);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -85,7 +89,7 @@ exports.getHotelRoomInventory = async (req, res) => {
     };
 
     const rooms = await Room.find(filter).sort({ roomNumber: 1 });
-    res.json(rooms);
+    res.status(200).json(rooms);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -127,7 +131,7 @@ exports.allotRoomAndConfirm = async (req, res) => {
       totalAmount: booking.totalAmount,
     }).catch((err) => console.error('Brevo Email Dispatch Failed:', err.message));
 
-    res.json({ message: 'Room allotted and confirmation email dispatched', booking });
+    res.status(200).json({ message: 'Room allotted and confirmation email dispatched', booking });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -142,7 +146,7 @@ exports.checkInGuest = async (req, res) => {
       { bookingStatus: 'checked_in' },
       { new: true }
     );
-    res.json({ message: 'Guest checked in', booking });
+    res.status(200).json({ message: 'Guest checked in', booking });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -162,7 +166,7 @@ exports.checkOutGuest = async (req, res) => {
       await Room.findByIdAndUpdate(booking.roomId, { status: 'cleaning' });
     }
 
-    res.json({ message: 'Guest checked out and room moved to cleaning', booking });
+    res.status(200).json({ message: 'Guest checked out and room moved to cleaning', booking });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
