@@ -3,6 +3,8 @@ const router = express.Router();
 const {
   getCustomerBookings,
   getPendingBookings,
+  getActiveBookings,
+  getAvailableRooms,
   allotRoomAndConfirm,
   checkInGuest,
   checkOutGuest,
@@ -12,8 +14,11 @@ const { protect } = require('../middleware/authMiddleware');
 // Customer Routes
 router.get('/my-bookings', protect(['customer']), getCustomerBookings);
 
-// Receptionist & Owner Routes
+// Receptionist & Owner Operations
 router.get('/pending', protect(['receptionist', 'owner']), getPendingBookings);
+router.get('/active', protect(['receptionist', 'owner']), getActiveBookings);
+router.get('/available-rooms', protect(['receptionist', 'owner']), getAvailableRooms);
+
 router.put('/:bookingId/allot', protect(['receptionist', 'owner']), allotRoomAndConfirm);
 router.put('/:bookingId/checkin', protect(['receptionist', 'owner']), checkInGuest);
 router.put('/:bookingId/checkout', protect(['receptionist', 'owner']), checkOutGuest);

@@ -108,3 +108,40 @@ exports.checkOutGuest = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// 1. Get Live Occupancy / Active Bookings (Confirmed & Checked In)
+exports.getActiveBookings = async (req, res) => {
+  try {
+    const bookings = await Booking.find({
+      hotelId: req.user.hotelId,
+      bookingStatus: { $in: ['confirmed', 'checked_in'] },
+    })
+      .populate('customerId', 'name email phone')
+      .populate('roomId', 'roomNumber roomType')
+      .sort({ updatedAt: -1 });
+
+    res.json(bookings);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 2. Get Available Vacant Rooms for Receptionist Allotment
+exports.getAvailableRooms = async (req, res) => {
+  try {
+    const { roomType } = req.query;
+    const filter = {
+      hotelId: req.user.hotelId,
+      status: 'available',
+    };
+
+    if (roomType) {
+      filter.roomType = new RegExp(`^${roomType.trim()}$`, 'i');
+    }
+
+    const rooms = await Room.find(filter).sort({ roomNumber: 1 });
+    res.json(rooms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
