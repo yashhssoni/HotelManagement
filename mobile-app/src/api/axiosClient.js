@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Replace 192.168.1.X with your computer's local Wi-Fi IP address for Expo Go physical device testing
-const BASE_URL = 'http://10.0.2.2:5000/api';
+const BASE_URL = 'https://hotelmanagement-skx0.onrender.com/api';
 
 const axiosClient = axios.create({
   baseURL: BASE_URL,
