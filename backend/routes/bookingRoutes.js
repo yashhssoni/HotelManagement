@@ -5,6 +5,7 @@ const {
   getPendingBookings,
   getActiveBookings,
   getAvailableRooms,
+  getHotelRoomInventory,
   allotRoomAndConfirm,
   checkInGuest,
   checkOutGuest,
@@ -18,6 +19,7 @@ router.get('/my-bookings', protect(['customer']), getCustomerBookings);
 router.get('/pending', protect(['receptionist', 'owner']), getPendingBookings);
 router.get('/active', protect(['receptionist', 'owner']), getActiveBookings);
 router.get('/available-rooms', protect(['receptionist', 'owner']), getAvailableRooms);
+router.get('/all-rooms', protect(['receptionist', 'owner']), getHotelRoomInventory);
 
 router.put('/:bookingId/allot', protect(['receptionist', 'owner']), allotRoomAndConfirm);
 router.put('/:bookingId/checkin', protect(['receptionist', 'owner']), checkInGuest);

@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const {
   createReceptionist,
+  getReceptionists,
+  deleteReceptionist,
   addRoom,
   getOwnerRooms,
   updateRoom,
@@ -12,8 +14,10 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 const { upload } = require('../config/cloudinary');
 
-// Staff Management
+// Staff Management Routes
 router.post('/receptionist', protect(['owner']), createReceptionist);
+router.get('/receptionist', protect(['owner']), getReceptionists);
+router.delete('/receptionist/:id', protect(['owner']), deleteReceptionist);
 
 // Room Inventory Management
 router.get('/rooms', protect(['owner']), getOwnerRooms);

@@ -173,3 +173,42 @@ exports.getOwnerAnalytics = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+// Get All Receptionists working under this Hotel
+exports.getReceptionists = async (req, res) => {
+  try {
+    const hotelIdentifier = req.user.hotelId || req.user.id;
+
+    const staffList = await User.find({
+      role: 'receptionist',
+      $or: [{ hotelId: hotelIdentifier }, { hotelId: req.user.hotelId }, { hotelId: req.user.id }],
+    })
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({ success: true, count: staffList.length, staff: staffList });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Delete / Remove Receptionist Account
+exports.deleteReceptionist = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const hotelIdentifier = req.user.hotelId || req.user.id;
+
+    const staff = await User.findOneAndDelete({
+      _id: id,
+      role: 'receptionist',
+      $or: [{ hotelId: hotelIdentifier }, { hotelId: req.user.hotelId }, { hotelId: req.user.id }],
+    });
+
+    if (!staff) {
+      return res.status(404).json({ message: 'Staff member not found or unauthorized' });
+    }
+
+    res.status(200).json({ message: 'Receptionist removed successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
