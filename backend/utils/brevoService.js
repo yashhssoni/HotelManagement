@@ -1,9 +1,7 @@
-const { apiInstance, brevo } = require('../config/brevo');
+const { client } = require('../config/brevo');
 
 // 1. Send OTP Verification Email
 exports.sendOtpEmail = async (toEmail, otpCode, purpose) => {
-  const sendSmtpEmail = new brevo.SendSmtpEmail();
-
   const purposeLabels = {
     registration: 'Account Registration',
     forgot_password: 'Password Reset',
@@ -12,13 +10,7 @@ exports.sendOtpEmail = async (toEmail, otpCode, purpose) => {
 
   const actionName = purposeLabels[purpose] || 'Verification';
 
-  sendSmtpEmail.subject = `Your OTP for ${actionName}: ${otpCode}`;
-  sendSmtpEmail.sender = {
-    name: process.env.BREVO_SENDER_NAME || 'Hotel Reservations',
-    email: process.env.BREVO_SENDER_EMAIL,
-  };
-  sendSmtpEmail.to = [{ email: toEmail }];
-  sendSmtpEmail.htmlContent = `
+  const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 520px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 10px; background-color: #ffffff;">
       <h2 style="color: #2563eb; text-align: center; margin-bottom: 8px;">Verification Code</h2>
       <p style="color: #475569; font-size: 14px; text-align: center; margin-bottom: 24px;">
@@ -37,7 +29,15 @@ exports.sendOtpEmail = async (toEmail, otpCode, purpose) => {
     </div>
   `;
 
-  return apiInstance.sendTransacEmail(sendSmtpEmail);
+  return client.transactionalEmails.sendTransacEmail({
+    subject: `Your OTP for ${actionName}: ${otpCode}`,
+    sender: {
+      name: process.env.BREVO_SENDER_NAME || 'Hotel Reservations',
+      email: process.env.BREVO_SENDER_EMAIL,
+    },
+    to: [{ email: toEmail }],
+    htmlContent,
+  });
 };
 
 // 2. Send Confirmed Booking Details Email (After Receptionist Allotment)
@@ -50,15 +50,7 @@ exports.sendBookingConfirmationEmail = async ({
   checkInDate,
   totalAmount,
 }) => {
-  const sendSmtpEmail = new brevo.SendSmtpEmail();
-
-  sendSmtpEmail.subject = `Booking Confirmed: Room #${roomNumber} (${bookingId})`;
-  sendSmtpEmail.sender = {
-    name: process.env.BREVO_SENDER_NAME || 'Hotel Reservations',
-    email: process.env.BREVO_SENDER_EMAIL,
-  };
-  sendSmtpEmail.to = [{ email: customerEmail, name: customerName }];
-  sendSmtpEmail.htmlContent = `
+  const htmlContent = `
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background-color: #ffffff;">
       <div style="text-align: center; margin-bottom: 20px;">
         <span style="background-color: #dcfce7; color: #15803d; font-weight: bold; padding: 6px 16px; border-radius: 9999px; font-size: 14px;">
@@ -100,5 +92,13 @@ exports.sendBookingConfirmationEmail = async ({
     </div>
   `;
 
-  return apiInstance.sendTransacEmail(sendSmtpEmail);
+  return client.transactionalEmails.sendTransacEmail({
+    subject: `Booking Confirmed: Room #${roomNumber} (${bookingId})`,
+    sender: {
+      name: process.env.BREVO_SENDER_NAME || 'Hotel Reservations',
+      email: process.env.BREVO_SENDER_EMAIL,
+    },
+    to: [{ email: customerEmail, name: customerName }],
+    htmlContent,
+  });
 };
