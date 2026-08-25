@@ -36,7 +36,6 @@ exports.addRoom = async (req, res) => {
   try {
     const { roomNumber, roomType, pricePerNight, maxGuests, amenities } = req.body;
     
-    // Extract uploaded Cloudinary file paths from Multer
     const images = req.files ? req.files.map((file) => file.path) : [];
 
     const room = await Room.create({
@@ -45,7 +44,7 @@ exports.addRoom = async (req, res) => {
       roomType,
       pricePerNight,
       maxGuests: maxGuests || 2,
-      amenities: amenities ? JSON.parse(amenities) : [],
+      amenities: amenities ? (typeof amenities === 'string' ? JSON.parse(amenities) : amenities) : [],
       images,
     });
 
@@ -55,7 +54,94 @@ exports.addRoom = async (req, res) => {
   }
 };
 
-// 3. Get Owner Analytics Dashboard Data
+// 3. Get All Owner Rooms (Filtered by hotelId)
+exports.getOwnerRooms = async (req, res) => {
+  try {
+    const hotelId = req.user.hotelId;
+    const rooms = await Room.find({ hotelId }).sort({ createdAt: -1 });
+    res.status(200).json({ success: true, count: rooms.length, rooms });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 4. Update / Modify Room Details
+exports.updateRoom = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { roomNumber, roomType, pricePerNight, maxGuests, amenities, status } = req.body;
+
+    let updateData = {};
+    if (roomNumber) updateData.roomNumber = roomNumber;
+    if (roomType) updateData.roomType = roomType;
+    if (pricePerNight) updateData.pricePerNight = Number(pricePerNight);
+    if (maxGuests) updateData.maxGuests = Number(maxGuests);
+    if (status) updateData.status = status;
+
+    if (amenities) {
+      updateData.amenities = typeof amenities === 'string' ? JSON.parse(amenities) : amenities;
+    }
+
+    const updatedRoom = await Room.findOneAndUpdate(
+      { _id: id, hotelId: req.user.hotelId },
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedRoom) {
+      return res.status(404).json({ message: 'Room not found or unauthorized' });
+    }
+
+    res.status(200).json({ message: 'Room updated successfully', room: updatedRoom });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 5. Update Room Operational Status (available / occupied / maintenance / cleaning)
+exports.updateRoomStatus = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['available', 'occupied', 'maintenance', 'cleaning'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: 'Invalid status value' });
+    }
+
+    const room = await Room.findOneAndUpdate(
+      { _id: id, hotelId: req.user.hotelId },
+      { status },
+      { new: true }
+    );
+
+    if (!room) {
+      return res.status(404).json({ message: 'Room not found or unauthorized' });
+    }
+
+    res.status(200).json({ message: `Room status updated to ${status}`, room });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 6. Delete Room from Inventory
+exports.deleteRoom = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const room = await Room.findOneAndDelete({ _id: id, hotelId: req.user.hotelId });
+
+    if (!room) {
+      return res.status(404).json({ message: 'Room not found or unauthorized' });
+    }
+
+    res.status(200).json({ message: 'Room deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 7. Get Owner Analytics Dashboard Data
 exports.getOwnerAnalytics = async (req, res) => {
   try {
     const hotelId = req.user.hotelId;
