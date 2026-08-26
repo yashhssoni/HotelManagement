@@ -1,13 +1,81 @@
 const Booking = require('../models/Booking');
 const Room = require('../models/Room');
+const Hotel = require('../models/Hotel');
 const { sendBookingConfirmationEmail } = require('../utils/brevoService');
 
-// Customer: Get My Bookings
+// 1. Customer: Explore All Active Hotels with Live Minimum Pricing & Available Counts
+exports.getExploreHotels = async (req, res) => {
+  try {
+    let hotels = [];
+    if (Hotel) {
+      hotels = await Hotel.find({ isActive: { $ne: false } }).lean();
+    }
+
+    // Agar hotels collection empty hai toh unique hotelIds se directory build karein
+    if (!hotels || hotels.length === 0) {
+      const distinctHotelIds = await Room.distinct('hotelId');
+      hotels = distinctHotelIds.map((id) => ({
+        _id: id,
+        name: 'GrandStay Luxury Hotel & Resort',
+        address: 'Main City Center Boulevard',
+        city: 'Prime Location',
+      }));
+    }
+
+    const populatedHotels = await Promise.all(
+      hotels.map(async (hotel) => {
+        const availableRooms = await Room.find({
+          hotelId: hotel._id,
+          status: 'available',
+        });
+
+        const minPrice =
+          availableRooms.length > 0
+            ? Math.min(...availableRooms.map((r) => r.pricePerNight))
+            : 1500;
+
+        return {
+          ...hotel,
+          availableCount: availableRooms.length,
+          startingPrice: minPrice,
+        };
+      })
+    );
+
+    res.status(200).json(populatedHotels);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 2. Customer, Receptionist & Owner: Get Available Vacant Rooms (Hotel & Category Filtered)
+exports.getAvailableRooms = async (req, res) => {
+  try {
+    const { roomType, hotelId } = req.query;
+    let filter = { status: 'available' };
+
+    const targetHotelId = hotelId || (req.user && req.user.hotelId);
+    if (targetHotelId) {
+      filter.$or = [{ hotelId: targetHotelId }, { hotelId: req.user.id }];
+    }
+
+    if (roomType && roomType !== 'All') {
+      filter.roomType = new RegExp(`^${roomType.trim()}$`, 'i');
+    }
+
+    const rooms = await Room.find(filter).sort({ pricePerNight: 1, roomNumber: 1 });
+    res.status(200).json(rooms);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 3. Customer: Get My Bookings
 exports.getCustomerBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ customerId: req.user.id })
       .populate('hotelId', 'name address contactPhone')
-      .populate('roomId', 'roomNumber roomType')
+      .populate('roomId', 'roomNumber roomType pricePerNight')
       .sort({ createdAt: -1 });
 
     res.status(200).json(bookings);
@@ -16,7 +84,7 @@ exports.getCustomerBookings = async (req, res) => {
   }
 };
 
-// Receptionist & Owner: View All Pending Bookings for Hotel
+// 4. Receptionist & Owner: View All Pending Bookings for Hotel
 exports.getPendingBookings = async (req, res) => {
   try {
     const hotelIdentifier = req.user.hotelId || req.user.id;
@@ -34,7 +102,7 @@ exports.getPendingBookings = async (req, res) => {
   }
 };
 
-// Receptionist & Owner: Live Occupancy / Active Bookings
+// 5. Receptionist & Owner: Live Occupancy / Active Bookings
 exports.getActiveBookings = async (req, res) => {
   try {
     const hotelIdentifier = req.user.hotelId || req.user.id;
@@ -53,33 +121,7 @@ exports.getActiveBookings = async (req, res) => {
   }
 };
 
-// Customer, Receptionist & Owner: Get Available Vacant Rooms
-exports.getAvailableRooms = async (req, res) => {
-  try {
-    const { roomType, hotelId } = req.query;
-    let filter = { status: 'available' };
-
-    // Agar owner/receptionist hai toh unka hotel scope lagega, customer ke case me all available ya specific hotelId
-    const targetHotelId = hotelId || req.user.hotelId;
-    if (targetHotelId) {
-      filter.$or = [
-        { hotelId: targetHotelId },
-        { hotelId: req.user.id },
-      ];
-    }
-
-    if (roomType) {
-      filter.roomType = new RegExp(`^${roomType.trim()}$`, 'i');
-    }
-
-    const rooms = await Room.find(filter).sort({ pricePerNight: 1, roomNumber: 1 });
-    res.status(200).json(rooms);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-};
-
-// Receptionist & Owner: View Full Hotel Room Inventory Directory
+// 6. Receptionist & Owner: View Full Hotel Room Inventory Directory
 exports.getHotelRoomInventory = async (req, res) => {
   try {
     const hotelIdentifier = req.user.hotelId || req.user.id;
@@ -95,7 +137,7 @@ exports.getHotelRoomInventory = async (req, res) => {
   }
 };
 
-// Receptionist & Owner: Allot Room Number & Trigger Confirmation Email
+// 7. Receptionist & Owner: Allot Room Number & Trigger Confirmation Email
 exports.allotRoomAndConfirm = async (req, res) => {
   try {
     const { bookingId } = req.params;
@@ -120,7 +162,6 @@ exports.allotRoomAndConfirm = async (req, res) => {
     room.status = 'occupied';
     await room.save();
 
-    // Trigger Brevo Confirmation Email
     sendBookingConfirmationEmail({
       customerEmail: booking.customerId.email,
       customerName: booking.customerId.name,
@@ -137,7 +178,7 @@ exports.allotRoomAndConfirm = async (req, res) => {
   }
 };
 
-// Receptionist & Owner: Check-in Guest
+// 8. Receptionist & Owner: Check-in Guest
 exports.checkInGuest = async (req, res) => {
   try {
     const { bookingId } = req.params;
@@ -152,7 +193,7 @@ exports.checkInGuest = async (req, res) => {
   }
 };
 
-// Receptionist & Owner: Check-out Guest & Release Room
+// 9. Receptionist & Owner: Check-out Guest & Release Room
 exports.checkOutGuest = async (req, res) => {
   try {
     const { bookingId } = req.params;

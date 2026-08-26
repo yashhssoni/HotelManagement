@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
+  getExploreHotels,
   getCustomerBookings,
   getPendingBookings,
   getActiveBookings,
@@ -13,9 +14,8 @@ const {
 const { protect } = require('../middleware/authMiddleware');
 
 // Customer Routes
+router.get('/explore-hotels', protect(['customer', 'owner', 'receptionist']), getExploreHotels);
 router.get('/my-bookings', protect(['customer']), getCustomerBookings);
-
-// Allow Customer, Receptionist, and Owner to fetch vacant rooms
 router.get('/available-rooms', protect(['customer', 'receptionist', 'owner']), getAvailableRooms);
 
 // Receptionist & Owner Operations
