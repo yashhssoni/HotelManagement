@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const {
+  getSingleHotelDetails,
   getExploreHotels,
   getCustomerBookings,
   getPendingBookings,
@@ -13,12 +14,13 @@ const {
 } = require('../controllers/bookingController');
 const { protect } = require('../middleware/authMiddleware');
 
-// Customer Routes
+// Single Hotel & Customer Routes
+router.get('/hotel-details', protect(['customer', 'receptionist', 'owner']), getSingleHotelDetails);
 router.get('/explore-hotels', protect(['customer', 'owner', 'receptionist']), getExploreHotels);
 router.get('/my-bookings', protect(['customer']), getCustomerBookings);
 router.get('/available-rooms', protect(['customer', 'receptionist', 'owner']), getAvailableRooms);
 
-// Receptionist & Owner Operations
+// Receptionist & Owner Desk Routes
 router.get('/pending', protect(['receptionist', 'owner']), getPendingBookings);
 router.get('/active', protect(['receptionist', 'owner']), getActiveBookings);
 router.get('/all-rooms', protect(['receptionist', 'owner']), getHotelRoomInventory);

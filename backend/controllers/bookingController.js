@@ -3,7 +3,58 @@ const Room = require('../models/Room');
 const Hotel = require('../models/Hotel');
 const { sendBookingConfirmationEmail } = require('../utils/brevoService');
 
-// 1. Customer: Explore All Active Hotels with Live Minimum Pricing & Available Counts
+// 1. Customer: Get Dedicated Single Hotel Details with Available Rooms
+exports.getSingleHotelDetails = async (req, res) => {
+  try {
+    let hotel = await Hotel.findOne({ isActive: { $ne: false } }).lean();
+
+    // Fallback: Agar database me hotel record nahi bana ho toh first available ya dummy structure load karein
+    if (!hotel) {
+      const anyHotel = await Hotel.findOne().lean();
+      if (anyHotel) {
+        hotel = anyHotel;
+      } else {
+        hotel = {
+          name: 'GrandStay Luxury Hotel & Resort',
+          address: {
+            street: 'Main City Center Boulevard',
+            city: 'Bhopal',
+            state: 'Madhya Pradesh',
+            pincode: '462001',
+          },
+          contactPhone: '+91 9876543210',
+          contactEmail: 'desk@grandstay.com',
+          images: [
+            'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80',
+          ],
+        };
+      }
+    }
+
+    const { roomType } = req.query;
+    let roomFilter = { status: 'available' };
+
+    if (hotel._id) {
+      roomFilter.hotelId = hotel._id;
+    }
+
+    if (roomType && roomType !== 'All') {
+      roomFilter.roomType = new RegExp(`^${roomType.trim()}$`, 'i');
+    }
+
+    const availableRooms = await Room.find(roomFilter).sort({ pricePerNight: 1, roomNumber: 1 });
+
+    res.status(200).json({
+      hotel,
+      availableRooms,
+      totalVacant: availableRooms.length,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// 2. Customer: Explore All Active Hotels with Live Minimum Pricing & Available Counts
 exports.getExploreHotels = async (req, res) => {
   try {
     let hotels = [];
@@ -11,7 +62,6 @@ exports.getExploreHotels = async (req, res) => {
       hotels = await Hotel.find({ isActive: { $ne: false } }).lean();
     }
 
-    // Agar hotels collection empty hai toh unique hotelIds se directory build karein
     if (!hotels || hotels.length === 0) {
       const distinctHotelIds = await Room.distinct('hotelId');
       hotels = distinctHotelIds.map((id) => ({
@@ -48,7 +98,7 @@ exports.getExploreHotels = async (req, res) => {
   }
 };
 
-// 2. Customer, Receptionist & Owner: Get Available Vacant Rooms (Hotel & Category Filtered)
+// 3. Customer, Receptionist & Owner: Get Available Vacant Rooms (Hotel & Category Filtered)
 exports.getAvailableRooms = async (req, res) => {
   try {
     const { roomType, hotelId } = req.query;
@@ -70,7 +120,7 @@ exports.getAvailableRooms = async (req, res) => {
   }
 };
 
-// 3. Customer: Get My Bookings
+// 4. Customer: Get My Bookings
 exports.getCustomerBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ customerId: req.user.id })
@@ -84,7 +134,7 @@ exports.getCustomerBookings = async (req, res) => {
   }
 };
 
-// 4. Receptionist & Owner: View All Pending Bookings for Hotel
+// 5. Receptionist & Owner: View All Pending Bookings for Hotel
 exports.getPendingBookings = async (req, res) => {
   try {
     const hotelIdentifier = req.user.hotelId || req.user.id;
@@ -102,7 +152,7 @@ exports.getPendingBookings = async (req, res) => {
   }
 };
 
-// 5. Receptionist & Owner: Live Occupancy / Active Bookings
+// 6. Receptionist & Owner: Live Occupancy / Active Bookings
 exports.getActiveBookings = async (req, res) => {
   try {
     const hotelIdentifier = req.user.hotelId || req.user.id;
@@ -121,7 +171,7 @@ exports.getActiveBookings = async (req, res) => {
   }
 };
 
-// 6. Receptionist & Owner: View Full Hotel Room Inventory Directory
+// 7. Receptionist & Owner: View Full Hotel Room Inventory Directory
 exports.getHotelRoomInventory = async (req, res) => {
   try {
     const hotelIdentifier = req.user.hotelId || req.user.id;
@@ -137,7 +187,7 @@ exports.getHotelRoomInventory = async (req, res) => {
   }
 };
 
-// 7. Receptionist & Owner: Allot Room Number & Trigger Confirmation Email
+// 8. Receptionist & Owner: Allot Room Number & Trigger Confirmation Email
 exports.allotRoomAndConfirm = async (req, res) => {
   try {
     const { bookingId } = req.params;
@@ -178,7 +228,7 @@ exports.allotRoomAndConfirm = async (req, res) => {
   }
 };
 
-// 8. Receptionist & Owner: Check-in Guest
+// 9. Receptionist & Owner: Check-in Guest
 exports.checkInGuest = async (req, res) => {
   try {
     const { bookingId } = req.params;
@@ -193,7 +243,7 @@ exports.checkInGuest = async (req, res) => {
   }
 };
 
-// 9. Receptionist & Owner: Check-out Guest & Release Room
+// 10. Receptionist & Owner: Check-out Guest & Release Room
 exports.checkOutGuest = async (req, res) => {
   try {
     const { bookingId } = req.params;
